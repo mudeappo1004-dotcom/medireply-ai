@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartReply AI - 매장/비즈니스 리뷰 자동 관리</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@100..900&display=swap');
+
+        body {
+            font-family: 'Pretendard', sans-serif;
+        }
+
+        .tab-active {
+            border-bottom: 2px solid #4f46e5;
+            color: #4f46e5;
+            font-weight: 600;
+        }
+
+        .tab-inactive {
+            color: #6b7280;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 antialiased">
+    <nav class="bg-white border-b border-gray-100">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <span class="text-xl font-bold text-indigo-600"><i class="fa-solid fa-robot mr-2"></i>SmartReply
+                        AI</span>
+                    <span class="ml-2 text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full">Beta</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-extrabold text-slate-900 mb-2">리뷰 답글, 이제 고민하지 마세요.</h1>
+            <p class="text-slate-600">복사해서 붙여넣거나, 링크만 입력하면 <strong class="text-indigo-600">AI가 완벽한 답글</strong>을 생성합니다.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left: Input -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit">
+                <!-- TABS -->
+                <div class="flex border-b border-gray-200 mb-6">
+                    <button onclick="switchTab('text')" id="tab-text"
+                        class="flex-1 pb-3 text-center tab-active transition">텍스트 직접 입력</button>
+                    <button onclick="switchTab('link')" id="tab-link"
+                        class="flex-1 pb-3 text-center tab-inactive transition">네이버 링크 입력</button>
+                </div>
+
+                <form id="replyForm" class="space-y-5">
+                    <!-- Text Input Section -->
+                    <div id="input-text-section">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">고객 리뷰 원문</label>
+                        <textarea id="reviewText" rows="6"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition resize-none"
+                            placeholder="리뷰 내용을 여기에 붙여넣으세요..."></textarea>
+                    </div>
+
+                    <!-- Link Input Section -->
+                    <div id="input-link-section" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">네이버 플레이스 URL</label>
+                        <input type="text" id="reviewUrl"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                            placeholder="https://map.naver.com/p/entry/place/...">
+                        <p class="text-xs text-gray-500 mt-2">
+                            <i class="fa-solid fa-circle-info mr-1"></i>답글이 없는 <strong>최신 리뷰 5개</strong>를 자동으로 가져옵니다.
+                        </p>
+                    </div>
+
+                    <!-- Tone Selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">답글 분위기</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="selectTone('warm')" id="btn-warm"
+                                class="tone-btn border border-gray-200 rounded-lg p-3 text-sm hover:bg-indigo-50 transition active bg-indigo-50 border-indigo-500 ring-1 ring-indigo-500">🧡
+                                따뜻/공감</button>
+                            <button type="button" onclick="selectTone('pro')" id="btn-pro"
+                                class="tone-btn border border-gray-200 rounded-lg p-3 text-sm hover:bg-indigo-50 transition">👔
+                                정중/전문</button>
+                        </div>
+                        <input type="hidden" id="selectedTone" value="따뜻하고 공감하는">
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-indigo-600 text-white py-3.5 rounded-lg font-bold hover:bg-indigo-700 transition shadow-lg flex items-center justify-center">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> 답글 생성하기
+                    </button>
+                </form>
+            </div>
+
+            <!-- Right: Result -->
+            <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200 relative min-h-[400px]">
+                <h2 class="text-lg font-bold mb-4">생성된 답글</h2>
+
+                <!-- Loading State -->
+                <div id="loading"
+                    class="hidden absolute inset-0 bg-white/90 z-10 flex flex-col items-center justify-center rounded-2xl">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-3"></div>
+                    <p class="text-indigo-600 font-medium" id="loadingText">AI가 분석 중입니다...</p>
+                </div>
+
+                <!-- Single Result -->
+                <div id="singleResult" class="hidden">
+                    <div class="bg-white p-5 rounded-xl border border-gray-200 shadow-sm mb-4">
+                        <p id="singleResultText" class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap"></p>
+                    </div>
+                    <button onclick="copyText('singleResultText')"
+                        class="float-right text-sm text-indigo-600 font-semibold hover:text-indigo-800"><i
+                            class="fa-regular fa-copy mr-1"></i> 복사하기</button>
+                </div>
+
+                <!-- Multi Result -->
+                <div id="multiResult" class="hidden space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                    <!-- Dynamic items will be injected here -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="flex flex-col items-center justify-center h-64 text-gray-400">
+                    <i class="fa-regular fa-comment-dots text-4xl mb-3"></i>
+                    <p>왼쪽에서 내용을 입력해주세요.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'text'; // 'text' or 'link'
+
+        function switchTab(mode) {
+            currentMode = mode;
+            // Update Tab Styles
+            document.querySelectorAll('button[id^="tab-"]').forEach(el => {
+                el.classList.remove('tab-active');
+                el.classList.add('tab-inactive', 'border-transparent');
+            });
+            const activeTab = document.getElementById('tab-' + mode);
+            activeTab.classList.add('tab-active');
+            activeTab.classList.remove('tab-inactive');
+
+            // Toggle Inputs
+            if (mode === 'text') {
+                document.getElementById('input-text-section').classList.remove('hidden');
+                document.getElementById('input-link-section').classList.add('hidden');
+            } else {
+                document.getElementById('input-text-section').classList.add('hidden');
+                document.getElementById('input-link-section').classList.remove('hidden');
+            }
+        }
+
+        function selectTone(type) {
+            document.querySelectorAll('.tone-btn').forEach(btn => {
+                btn.className = 'tone-btn border border-gray-200 rounded-lg p-3 text-sm hover:bg-indigo-50 transition w-full';
+            });
+            const btn = document.getElementById('btn-' + type);
+            btn.className = 'tone-btn border border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500 rounded-lg p-3 text-sm transition w-full';
+            document.getElementById('selectedTone').value = type === 'warm' ? '따뜻하고 공감하는' : '정중하고 전문적인';
+        }
+
+        document.getElementById('replyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const tone = document.getElementById('selectedTone').value;
+            const loading = document.getElementById('loading');
+            const loadingText = document.getElementById('loadingText');
+
+            // Validate Input
+            let payload = { tone: tone };
+            if (currentMode === 'text') {
+                const text = document.getElementById('reviewText').value;
+                if (!text.trim()) return alert("내용을 입력해주세요.");
+                payload.review_text = text;
+            } else {
+                const url = document.getElementById('reviewUrl').value;
+                if (!url.trim()) return alert("URL을 입력해주세요.");
+                payload.url = url;
+            }
+
+            // UI Reset
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('singleResult').classList.add('hidden');
+            document.getElementById('multiResult').classList.add('hidden');
+            document.getElementById('multiResult').innerHTML = '';
+
+            loading.classList.remove('hidden');
+            loadingText.innerText = currentMode === 'link' ? "네이버 리뷰를 분석 중입니다..." : "답글 생성 중...";
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+
+                if (data.multi_results) {
+                    // Handle Multiple Results (Link Mode)
+                    const container = document.getElementById('multiResult');
+                    container.classList.remove('hidden');
+
+                    if (data.multi_results.length === 0) {
+                        container.innerHTML = `<p class="text-center text-gray-500">답글이 없는 최신 리뷰를 찾지 못했습니다.</p>`;
+                    }
+
+                    data.multi_results.forEach((item, index) => {
+                        const div = document.createElement('div');
+                        div.className = 'bg-white p-5 rounded-xl border border-gray-200 shadow-sm';
+                        div.innerHTML = `
+                            <div class="mb-3">
+                                <span class="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">고객 리뷰</span>
+                                <p class="text-gray-800 text-sm mt-1 line-clamp-3">${item.original}</p>
+                            </div>
+                            <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 mb-2">
+                                <span class="text-indigo-600 text-xs font-bold">AI 답글</span>
+                                <p class="text-gray-700 text-sm mt-1 whitespace-pre-wrap" id="res-${index}">${item.reply}</p>
+                            </div>
+                            <button onclick="copyText('res-${index}')" class="text-sm text-indigo-600 font-semibold hover:text-indigo-800 w-full text-right"><i class="fa-regular fa-copy mr-1"></i> 복사</button>
+                        `;
+                        container.appendChild(div);
+                    });
+
+                } else if (data.reply) {
+                    // Handle Single Result (Text Mode)
+                    document.getElementById('singleResult').classList.remove('hidden');
+                    document.getElementById('singleResultText').innerText = data.reply;
+                } else {
+                    alert(data.detail || "오류가 발생했습니다.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert("서버 연결 실패");
+            } finally {
+                loading.classList.add('hidden');
+            }
+        });
+
+        function copyText(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text).then(() => alert("복사되었습니다!"));
+        }
+    </script>
+</body>
+
+</html>
